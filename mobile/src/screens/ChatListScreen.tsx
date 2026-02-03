@@ -6,10 +6,11 @@ import {
   StyleSheet, 
   RefreshControl,
   TouchableOpacity,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RoomListItem } from '../components';
+import { RoomListItem, CreateRoomModal, JoinRoomModal } from '../components';
 import matrixService from '../services/MatrixService';
 import { Room } from '../types';
 import { colors, spacing, fontSizes, borderRadius } from '../utils/theme';
@@ -29,6 +30,9 @@ export const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) =>
   const [rooms, setRooms] = useState<Room[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showJoinModal, setShowJoinModal] = useState(false);
 
   const loadRooms = useCallback(async () => {
     try {
@@ -78,20 +82,107 @@ export const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) =>
     });
   };
 
+  const handleRoomCreated = (room: Room) => {
+    setRooms(prev => [room, ...prev]);
+    navigation.navigate('Chat', {
+      roomId: room.roomId,
+      roomName: room.name,
+    });
+  };
+
+  const handleRoomJoined = (room: Room) => {
+    setRooms(prev => {
+      const exists = prev.find(r => r.roomId === room.roomId);
+      if (!exists) {
+        return [room, ...prev];
+      }
+      return prev;
+    });
+    navigation.navigate('Chat', {
+      roomId: room.roomId,
+      roomName: room.name,
+    });
+  };
+
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
       <Text style={styles.emptyIcon}>💬</Text>
       <Text style={styles.emptyTitle}>No Conversations Yet</Text>
       <Text style={styles.emptySubtitle}>
-        Discover other agents and start connecting!
+        Create a room, join one, or discover other agents!
       </Text>
-      <TouchableOpacity 
-        style={styles.discoverButton}
-        onPress={() => navigation.navigate('Discover' as any)}
-      >
-        <Text style={styles.discoverButtonText}>Discover Agents</Text>
-      </TouchableOpacity>
+      <View style={styles.emptyActions}>
+        <TouchableOpacity 
+          style={styles.emptyActionButton}
+          onPress={() => setShowCreateModal(true)}
+        >
+          <Text style={styles.emptyActionIcon}>➕</Text>
+          <Text style={styles.emptyActionText}>Create Room</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.emptyActionButton}
+          onPress={() => setShowJoinModal(true)}
+        >
+          <Text style={styles.emptyActionIcon}>🚪</Text>
+          <Text style={styles.emptyActionText}>Join Room</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.emptyActionButton, styles.discoverButton]}
+          onPress={() => navigation.navigate('Discover' as any)}
+        >
+          <Text style={styles.emptyActionIcon}>🔍</Text>
+          <Text style={styles.emptyActionText}>Discover</Text>
+        </TouchableOpacity>
+      </View>
     </View>
+  );
+
+  const ActionMenu = () => (
+    <Modal
+      visible={showMenu}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowMenu(false)}
+    >
+      <TouchableOpacity 
+        style={styles.menuOverlay}
+        activeOpacity={1}
+        onPress={() => setShowMenu(false)}
+      >
+        <View style={styles.menuContainer}>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => {
+              setShowMenu(false);
+              setShowCreateModal(true);
+            }}
+          >
+            <Text style={styles.menuIcon}>➕</Text>
+            <Text style={styles.menuText}>Create Room</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => {
+              setShowMenu(false);
+              setShowJoinModal(true);
+            }}
+          >
+            <Text style={styles.menuIcon}>🚪</Text>
+            <Text style={styles.menuText}>Join Room</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => {
+              setShowMenu(false);
+              navigation.navigate('Discover' as any);
+            }}
+          >
+            <Text style={styles.menuIcon}>🔍</Text>
+            <Text style={styles.menuText}>Find Agent</Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    </Modal>
   );
 
   return (
@@ -101,7 +192,7 @@ export const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) =>
         <Text style={styles.headerTitle}>Messages</Text>
         <TouchableOpacity 
           style={styles.composeButton}
-          onPress={() => navigation.navigate('Discover' as any)}
+          onPress={() => setShowMenu(true)}
         >
           <Text style={styles.composeIcon}>✏️</Text>
         </TouchableOpacity>
@@ -127,6 +218,19 @@ export const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) =>
         }
         ListEmptyComponent={!loading ? renderEmptyState : null}
         contentContainerStyle={rooms.length === 0 ? styles.emptyList : styles.listContent}
+      />
+
+      {/* Modals */}
+      <ActionMenu />
+      <CreateRoomModal
+        visible={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onRoomCreated={handleRoomCreated}
+      />
+      <JoinRoomModal
+        visible={showJoinModal}
+        onClose={() => setShowJoinModal(false)}
+        onRoomJoined={handleRoomJoined}
       />
     </SafeAreaView>
   );
@@ -190,16 +294,59 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: spacing.lg,
   },
-  discoverButton: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: spacing.lg,
+  emptyActions: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  emptyActionButton: {
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     borderRadius: borderRadius.lg,
+    alignItems: 'center',
+    minWidth: 90,
   },
-  discoverButtonText: {
-    color: '#FFFFFF',
+  emptyActionIcon: {
+    fontSize: 24,
+    marginBottom: spacing.xs,
+  },
+  emptyActionText: {
+    color: colors.textSecondary,
+    fontSize: fontSizes.sm,
+    fontWeight: '500',
+  },
+  discoverButton: {
+    backgroundColor: colors.primary,
+  },
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+    paddingTop: 100,
+    paddingRight: spacing.md,
+  },
+  menuContainer: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+    minWidth: 180,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  menuIcon: {
+    fontSize: 18,
+    marginRight: spacing.md,
+  },
+  menuText: {
     fontSize: fontSizes.md,
-    fontWeight: '600',
+    color: colors.textPrimary,
+    fontWeight: '500',
   },
 });
 

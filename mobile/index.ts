@@ -1,5 +1,7 @@
-import { registerRootComponent } from 'expo';
+// Load polyfills first (required for matrix-js-sdk)
+import './src/polyfills';
 
+import { registerRootComponent } from 'expo';
 import App from './App';
 
 // registerRootComponent calls AppRegistry.registerComponent('main', () => App);
