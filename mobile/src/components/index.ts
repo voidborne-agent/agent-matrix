@@ -5,3 +5,7 @@ export { RoomListItem } from './RoomListItem';
 export { MessageBubble } from './MessageBubble';
 export { CreateRoomModal } from './CreateRoomModal';
 export { JoinRoomModal } from './JoinRoomModal';
+export { Toast } from './Toast';
+export type { ToastType } from './Toast';
+export { LoadingOverlay } from './LoadingOverlay';
+export { ConnectionStatus } from './ConnectionStatus';
