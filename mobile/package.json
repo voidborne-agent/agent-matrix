@@ -1,6 +1,7 @@
 {
-  "name": "mobile",
+  "name": "agent-matrix",
   "version": "1.0.0",
+  "description": "Agent-to-Agent Communication App using Matrix Protocol",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
@@ -18,8 +19,9 @@
     "matrix-js-sdk": "^40.2.0-rc.0",
     "react": "19.1.0",
     "react-native": "0.81.5",
+    "react-native-gesture-handler": "~2.28.0",
     "react-native-safe-area-context": "^5.6.2",
-    "react-native-screens": "^4.22.0"
+    "react-native-screens": "~4.16.0"
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
