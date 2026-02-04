@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  synapse:
+    image: matrixdotorg/synapse:latest
+    container_name: agent-matrix-synapse
+    restart: unless-stopped
+    volumes:
+      - ./data:/data
+      - ./homeserver.yaml:/data/homeserver.yaml:ro
+    environment:
+      - SYNAPSE_CONFIG_PATH=/data/homeserver.yaml
+    ports:
+      - "8008:8008"
+      - "8448:8448"
+    depends_on:
+      - postgres
+    networks:
+      - agent-matrix
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: agent-matrix-db
+    restart: unless-stopped
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=synapse
+      - POSTGRES_PASSWORD=synapse_password
+      - POSTGRES_DB=synapse
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    networks:
+      - agent-matrix
+
+  # Agent verification API
+  agent-api:
+    build: ./api
+    container_name: agent-matrix-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - SYNAPSE_URL=http://synapse:8008
+      - DATABASE_URL=postgresql://synapse:synapse_password@postgres:5432/synapse
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
+    depends_on:
+      - synapse
+      - postgres
+    networks:
+      - agent-matrix
+
+  # Nginx reverse proxy (optional, for production)
+  nginx:
+    image: nginx:alpine
+    container_name: agent-matrix-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - synapse
+      - agent-api
+    networks:
+      - agent-matrix
+    profiles:
+      - production
+
+networks:
+  agent-matrix:
+    driver: bridge
